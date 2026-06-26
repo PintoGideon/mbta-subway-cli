@@ -238,27 +238,16 @@ export function buildRouteGraph(
   }
 
   for (const connection of connectingStops) {
-    const routesAtConnection = connection.routes;
+    for (const route of connection.routes) {
+      const connectedRouteIds = routeGraph.get(route.id) ?? new Set<string>();
+      routeGraph.set(route.id, connectedRouteIds);
 
-    for (
-      let routeIndex = 0;
-      routeIndex < routesAtConnection.length;
-      routeIndex += 1
-    ) {
-      for (
-        let destinationRouteIndex = routeIndex + 1;
-        destinationRouteIndex < routesAtConnection.length;
-        destinationRouteIndex += 1
-      ) {
-        const sourceRoute = routesAtConnection[routeIndex];
-        const destinationRoute = routesAtConnection[destinationRouteIndex];
-
-        if (!sourceRoute || !destinationRoute) {
+      for (const otherRoute of connection.routes) {
+        if (otherRoute.id === route.id) {
           continue;
         }
 
-        routeGraph.get(sourceRoute.id)?.add(destinationRoute.id);
-        routeGraph.get(destinationRoute.id)?.add(sourceRoute.id);
+        connectedRouteIds.add(otherRoute.id);
       }
     }
   }
