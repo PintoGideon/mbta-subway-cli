@@ -50,8 +50,10 @@ export class MbtaClient {
    * Fetches the stops served by a single MBTA route ID.
    */
   async getStopsForRoute(routeId: string): Promise<SubwayStop[]> {
+    // Encode the route id: it is the one dynamic part of the query, so a value
+    // with reserved characters (&, =, #, ...) must not corrupt the URL.
     const response = await this.fetchJson<MbtaListResponse<MbtaStopResource>>(
-      `/stops?filter[route]=${routeId}`,
+      `/stops?filter[route]=${encodeURIComponent(routeId)}`,
     );
     const subwayStops = response.data.map(toSubwayStop);
 

@@ -72,63 +72,57 @@ export function buildSubwayNetwork(
 /**
  * Counts how many stops are served by each route.
  */
-export function getRouteStopCounts(
+function getRouteStopCounts(
   routesWithStops: RouteWithStops[],
 ): RouteStopCount[] {
-  const routeStopCounts = routesWithStops.map((routeStops) => ({
+  return routesWithStops.map((routeStops) => ({
     route: routeStops.route,
     stopCount: routeStops.stops.length,
   }));
-
-  return routeStopCounts;
 }
 
 /**
- * Finds all routes tied for the largest number of stops.
- * Returning all ties avoids arbitrarily choosing one route when counts match.
+ * Finds the routes with the "most" or "fewest" stops, returning every route
+ * tied for that count. Returning all ties avoids arbitrarily picking one route
+ * when counts match, which keeps the result correct as the MBTA data changes.
+ */
+function findRoutesByStopCount(
+  routesWithStops: RouteWithStops[],
+  select: "most" | "fewest",
+): RouteStopCount[] {
+  const routeStopCounts = getRouteStopCounts(routesWithStops);
+
+  if (routeStopCounts.length === 0) {
+    return [];
+  }
+
+  const stopCounts = routeStopCounts.map(
+    (routeStopCount) => routeStopCount.stopCount,
+  );
+  const targetStopCount =
+    select === "most" ? Math.max(...stopCounts) : Math.min(...stopCounts);
+
+  return routeStopCounts.filter(
+    (routeStopCount) => routeStopCount.stopCount === targetStopCount,
+  );
+}
+
+/**
+ * Finds the route with the most stops (all routes, if several tie).
  */
 export function findRoutesWithMostStops(
   routesWithStops: RouteWithStops[],
 ): RouteStopCount[] {
-  const routeStopCounts = getRouteStopCounts(routesWithStops);
-
-  if (routeStopCounts.length === 0) {
-    return [];
-  }
-
-  const mostStops = Math.max(
-    ...routeStopCounts.map((routeStopCount) => routeStopCount.stopCount),
-  );
-
-  const routesWithMostStops = routeStopCounts.filter(
-    (routeStopCount) => routeStopCount.stopCount === mostStops,
-  );
-
-  return routesWithMostStops;
+  return findRoutesByStopCount(routesWithStops, "most");
 }
 
 /**
- * Finds all routes tied for the smallest number of stops.
- * Returning all ties keeps the result accurate if the MBTA data changes.
+ * Finds the route with the fewest stops (all routes, if several tie).
  */
 export function findRoutesWithFewestStops(
   routesWithStops: RouteWithStops[],
 ): RouteStopCount[] {
-  const routeStopCounts = getRouteStopCounts(routesWithStops);
-
-  if (routeStopCounts.length === 0) {
-    return [];
-  }
-
-  const fewestStops = Math.min(
-    ...routeStopCounts.map((routeStopCount) => routeStopCount.stopCount),
-  );
-
-  const routesWithFewestStops = routeStopCounts.filter(
-    (routeStopCount) => routeStopCount.stopCount === fewestStops,
-  );
-
-  return routesWithFewestStops;
+  return findRoutesByStopCount(routesWithStops, "fewest");
 }
 
 /**
@@ -450,24 +444,6 @@ export function buildRoutePlanSteps(
   });
 
   return steps;
-}
-
-/**
- * Finds a deterministic shared stop for transferring between two routes.
- */
-export function findTransferStopBetweenRoutes(
-  routesWithStops: RouteWithStops[],
-  firstRouteId: string,
-  secondRouteId: string,
-): SubwayStop | undefined {
-  const connectingStops = findConnectingStops(routesWithStops);
-  const transferStop = findTransferStopInConnections(
-    connectingStops,
-    firstRouteId,
-    secondRouteId,
-  );
-
-  return transferStop;
 }
 
 function findTransferStopInConnections(
