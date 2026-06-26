@@ -26,7 +26,9 @@ pnpm install
 ```
 
 The MBTA API can be used without an API key, but may rate-limit unauthenticated
-requests. If you have a key, copy the example env file and paste your key:
+requests. An API key is recommended for commands that make multiple requests,
+such as `--list-connections` and `--plan-route`. If you have a key, copy the
+example env file and paste your key:
 
 ```sh
 cp .env.example .env
@@ -39,6 +41,12 @@ MBTA_API_KEY=your_api_key
 ```
 
 ## Run
+
+Show CLI help:
+
+```sh
+pnpm start --help
+```
 
 List subway routes:
 
@@ -80,3 +88,14 @@ Use quotes for stop names that contain spaces.
 pnpm run typecheck
 pnpm test
 ```
+
+## Possible Further Improvements
+
+- Explore route planning algorithms beyond the current breadth-first search over
+  route connections, such as Dijkstra's algorithm or other pathfinding
+  approaches that can optimize for stop count, transfer count, distance, or
+  estimated travel time.
+- Add rate-limit handling options for unauthenticated MBTA API usage, such as
+  retry/backoff behavior or clearer retry guidance when the API returns `429`.
+- Cache route and stop data to reduce repeated MBTA API calls, while making the
+  cache lifetime explicit so results do not become unexpectedly stale.
