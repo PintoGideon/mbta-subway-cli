@@ -91,18 +91,17 @@ pnpm test
 
 ## Possible Further Improvements
 
-- Explore route planning algorithms beyond the current breadth-first search over
-  route connections, such as Dijkstra's algorithm or other pathfinding
-  approaches that can optimize for stop count, transfer count, distance, or
-  estimated travel time.
 - Add rate-limit handling options for unauthenticated MBTA API usage, such as
   retry/backoff behavior or clearer retry guidance when the API returns `429`.
 - Cache route and stop data to reduce repeated MBTA API calls, while making the
   cache lifetime explicit so results do not become unexpectedly stale.
+- Extend route planning from the current route-level breadth-first search to a
+  stop-level pathfinding algorithm if exact stop-by-stop itineraries or travel
+  optimization become requirements.
 
 ## AI Usage
 
-OpenAI Codex was used as a development assistant for project bootstrapping, CLI
+OpenAI Codex was used as a development assistant for project bootstrapping, design and planning,  CLI
 setup, boilerplate code, comparing public solutions, focused code edits, README
 edits, and test-case generation.
 

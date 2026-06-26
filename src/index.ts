@@ -1,14 +1,16 @@
 import { Command, Option } from "commander";
 import { existsSync } from "node:fs";
+import {
+  formatConnectingStops,
+  formatRouteNames,
+  formatRoutePlan,
+  formatRouteStopCounts,
+} from "./formatters.js";
 import { MbtaClient } from "./mbtaClient.js";
 import {
   findConnectingStops,
   findRoutesWithFewestStops,
   findRoutesWithMostStops,
-  formatConnectingStops,
-  formatRouteNames,
-  formatRoutePlan,
-  formatRouteStopCounts,
   getRoutesWithStops,
   listSubwayRouteNames,
   planRoute as createRoutePlan,
@@ -74,14 +76,16 @@ async function runCli(options: CliOptions, stops: string[]): Promise<void> {
 
   if (options.listRoutes) {
     const routeNames = await listSubwayRouteNames(mbtaClient);
-    console.log(formatRouteNames(routeNames));
+    const output = formatRouteNames(routeNames);
+    writeOutput(output);
     return;
   }
 
   if (options.listConnections) {
     const routesWithStops = await getRoutesWithStops(mbtaClient);
     const connectingStops = findConnectingStops(routesWithStops);
-    console.log(formatConnectingStops(connectingStops));
+    const output = formatConnectingStops(connectingStops);
+    writeOutput(output);
     return;
   }
 
@@ -96,7 +100,8 @@ async function runCli(options: CliOptions, stops: string[]): Promise<void> {
 
     const routesWithStops = await getRoutesWithStops(mbtaClient);
     const routePlan = createRoutePlan(routesWithStops, startName, finishName);
-    console.log(formatRoutePlan(routePlan));
+    const output = formatRoutePlan(routePlan);
+    writeOutput(output);
     return;
   }
 
@@ -111,17 +116,27 @@ async function runCli(options: CliOptions, stops: string[]): Promise<void> {
         ? "Route with the most stops:"
         : "Route with the fewest stops:";
 
-    console.log(formatRouteStopCounts(heading, routeStopCounts));
+    const output = formatRouteStopCounts(heading, routeStopCounts);
+    writeOutput(output);
     return;
   }
 
-  console.log('Run "pnpm start --help" to see available commands.');
+  writeOutput('Run "pnpm start --help" to see available commands.');
 }
 
 try {
   await program.parseAsync();
 } catch (error) {
   const message = error instanceof Error ? error.message : String(error);
-  console.error(`error: ${message}`);
+  const errorMessage = `error: ${message}`;
+  writeError(errorMessage);
   process.exitCode = 1;
+}
+
+function writeOutput(message: string): void {
+  process.stdout.write(`${message}\n`);
+}
+
+function writeError(message: string): void {
+  process.stderr.write(`${message}\n`);
 }

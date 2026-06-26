@@ -49,6 +49,13 @@ export interface ConnectingStop {
   routes: SubwayRoute[];
 }
 
+export interface SubwayNetwork {
+  routesWithStops: RouteWithStops[];
+  connectingStops: ConnectingStop[];
+  routeGraph: Map<string, string[]>;
+  routesById: Map<string, SubwayRoute>;
+}
+
 export interface RoutePlan {
   startStopName: string;
   finishStopName: string;

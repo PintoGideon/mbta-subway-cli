@@ -1,15 +1,16 @@
 import { describe, expect, it } from "vitest";
 import {
   buildRouteGraph,
+  buildSubwayNetwork,
   findConnectingStops,
   findRoutesByStopIds,
   findRoutesWithFewestStops,
   findRoutesWithMostStops,
   findStopIdsByName,
-  formatConnectingStops,
-  formatRoutePlan,
+  listSubwayRouteNames,
   planRoute,
 } from "../src/subwayService.js";
+import type { MbtaClient } from "../src/mbtaClient.js";
 import type { RouteWithStops, SubwayRoute } from "../src/types.js";
 
 const redLine: SubwayRoute = {
@@ -68,6 +69,18 @@ const routesWithStops: RouteWithStops[] = [
 ];
 
 describe("subway service", () => {
+  it("lists route names alphabetically", async () => {
+    const mbtaClient = {
+      getSubwayRoutes: async () => [redLine, greenBLine, blueLine],
+    } as unknown as MbtaClient;
+
+    await expect(listSubwayRouteNames(mbtaClient)).resolves.toEqual([
+      "Blue Line",
+      "Green Line B",
+      "Red Line",
+    ]);
+  });
+
   it("finds routes tied for most and fewest stops", () => {
     const mostStops = findRoutesWithMostStops(routesWithStops);
     const fewestStops = findRoutesWithFewestStops(routesWithStops);
@@ -90,6 +103,11 @@ describe("subway service", () => {
     ]);
   });
 
+  it("returns no longest or fewest route for empty route data", () => {
+    expect(findRoutesWithMostStops([])).toEqual([]);
+    expect(findRoutesWithFewestStops([])).toEqual([]);
+  });
+
   it("finds connecting stops by shared stop ID, not by display name alone", () => {
     const connectingStops = findConnectingStops(routesWithStops);
 
@@ -105,17 +123,14 @@ describe("subway service", () => {
     ).toBe(false);
   });
 
-  it("formats connecting stops in deterministic alphabetical order", () => {
-    const output = formatConnectingStops(findConnectingStops(routesWithStops));
+  it("builds a reusable subway network from route-stop data", () => {
+    const subwayNetwork = buildSubwayNetwork(routesWithStops);
 
-    expect(output).toBe(
-      [
-        "Connecting stops:",
-        "- Downtown Crossing: Orange Line, Red Line",
-        "- Park Street: Green Line B, Red Line",
-        "- State: Blue Line, Orange Line",
-      ].join("\n"),
-    );
+    expect(
+      subwayNetwork.connectingStops.map((connection) => connection.stop.id),
+    ).toEqual(["park-street", "downtown-crossing", "state"]);
+    expect(subwayNetwork.routeGraph.get("Red")).toEqual(["Green-B", "Orange"]);
+    expect(subwayNetwork.routesById.get("Blue")).toEqual(blueLine);
   });
 
   it("matches stop names case-insensitively and finds routes for stop IDs", () => {
@@ -158,27 +173,31 @@ describe("subway service", () => {
         stopName: "Aquarium",
       },
     ]);
-    expect(formatRoutePlan(routePlan)).toBe(
-      [
-        "Route plan from Alewife to Aquarium:",
-        "- Board Red Line at Alewife",
-        "- Transfer to Orange Line at Downtown Crossing",
-        "- Transfer to Blue Line at State",
-        "- Arrive at Aquarium",
-      ].join("\n"),
-    );
   });
 
-  it("formats same-route plans without unnecessary transfers", () => {
+  it("plans same-route trips without unnecessary transfers", () => {
     const routePlan = planRoute(routesWithStops, "Alewife", "Downtown Crossing");
 
     expect(routePlan.routes.map((route) => route.id)).toEqual(["Red"]);
-    expect(formatRoutePlan(routePlan)).toBe(
-      [
-        "Route plan from Alewife to Downtown Crossing:",
-        "- Board Red Line at Alewife",
-        "- Arrive at Downtown Crossing",
-      ].join("\n"),
+    expect(routePlan.steps).toEqual([
+      {
+        kind: "board",
+        stopName: "Alewife",
+        route: redLine,
+      },
+      {
+        kind: "arrive",
+        stopName: "Downtown Crossing",
+      },
+    ]);
+  });
+
+  it("throws helpful errors when requested stops do not exist", () => {
+    expect(() => planRoute(routesWithStops, "Missing", "Aquarium")).toThrow(
+      'Could not find start stop "Missing".',
+    );
+    expect(() => planRoute(routesWithStops, "Alewife", "Missing")).toThrow(
+      'Could not find finish stop "Missing".',
     );
   });
 });

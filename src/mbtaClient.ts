@@ -25,7 +25,9 @@ export class MbtaClient {
    * Creates an MBTA API client.
    */
   constructor(options: MbtaClientOptions = {}) {
-    this.apiKey = normalizeApiKey(options.apiKey ?? process.env.MBTA_API_KEY);
+    const apiKey = options.apiKey ?? process.env.MBTA_API_KEY;
+
+    this.apiKey = normalizeApiKey(apiKey);
     this.baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
     this.fetchImpl = options.fetchImpl ?? fetch;
   }
@@ -39,8 +41,9 @@ export class MbtaClient {
     const response = await this.fetchJson<MbtaListResponse<MbtaRouteResource>>(
       `/routes?filter[type]=${routeTypes}`,
     );
+    const subwayRoutes = response.data.map(toSubwayRoute);
 
-    return response.data.map(toSubwayRoute);
+    return subwayRoutes;
   }
 
   /**
@@ -50,8 +53,9 @@ export class MbtaClient {
     const response = await this.fetchJson<MbtaListResponse<MbtaStopResource>>(
       `/stops?filter[route]=${routeId}`,
     );
+    const subwayStops = response.data.map(toSubwayStop);
 
-    return response.data.map(toSubwayStop);
+    return subwayStops;
   }
 
   /**
@@ -75,7 +79,9 @@ export class MbtaClient {
       );
     }
 
-    return response.json() as Promise<TResponse>;
+    const json = await response.json();
+
+    return json as TResponse;
   }
 }
 
@@ -110,7 +116,11 @@ function toSubwayStop(resource: MbtaStopResource): SubwayStop {
  * Narrows MBTA route types to the light rail and heavy rail values we support.
  */
 function isSubwayRouteType(value: number): value is SubwayRouteType {
-  return SUBWAY_ROUTE_TYPES.some((routeType) => routeType === value);
+  const isSupportedRouteType = SUBWAY_ROUTE_TYPES.some(
+    (routeType) => routeType === value,
+  );
+
+  return isSupportedRouteType;
 }
 
 function normalizeApiKey(apiKey: string | undefined): string | undefined {
