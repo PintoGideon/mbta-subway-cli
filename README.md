@@ -99,3 +99,13 @@ pnpm test
   retry/backoff behavior or clearer retry guidance when the API returns `429`.
 - Cache route and stop data to reduce repeated MBTA API calls, while making the
   cache lifetime explicit so results do not become unexpectedly stale.
+
+## AI Usage
+
+OpenAI Codex was used as a development assistant for project bootstrapping, CLI
+setup, boilerplate code, comparing public solutions, focused code edits, README
+edits, and test-case generation.
+
+All final code, behavior, and tradeoffs were reviewed manually. Validation was
+performed with TypeScript typechecking, unit tests, and end-to-end CLI smoke
+tests against the MBTA API.
