@@ -1,0 +1,3 @@
+allowBuilds:
+  # Required by tsx/vitest tooling to install esbuild's native binary.
+  esbuild: true

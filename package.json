@@ -1,0 +1,25 @@
+{
+  "name": "broad-mbta-assessment",
+  "version": "0.1.0",
+  "description": "TypeScript CLI for the Broad TGG MBTA take-home assessment.",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "start": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.9"
+  },
+  "dependencies": {
+    "commander": "^15.0.0"
+  }
+}
