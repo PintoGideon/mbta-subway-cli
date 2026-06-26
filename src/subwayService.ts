@@ -486,16 +486,22 @@ function findTransferStopInConnections(
   firstRouteId: string,
   secondRouteId: string,
 ): SubwayStop | undefined {
-  const transferStops = connectingStops.filter((connectingStop) => {
-    const routeIds = new Set(
-      connectingStop.routes.map((route) => route.id),
+  const transferStopOptions: SubwayStop[] = [];
+
+  for (const connectingStop of connectingStops) {
+    const servesFirstRoute = connectingStop.routes.some(
+      (route) => route.id === firstRouteId,
+    );
+    const servesSecondRoute = connectingStop.routes.some(
+      (route) => route.id === secondRouteId,
     );
 
-    return routeIds.has(firstRouteId) && routeIds.has(secondRouteId);
-  });
-  const transferStopOptions = transferStops.map(
-    (connectingStop) => connectingStop.stop,
-  );
+    if (servesFirstRoute && servesSecondRoute) {
+      transferStopOptions.push(connectingStop.stop);
+    }
+  }
+
+  // A route pair can share multiple stops; sort to choose one deterministically.
   const sortedTransferStopOptions = transferStopOptions.sort((a, b) =>
     a.name.localeCompare(b.name),
   );
