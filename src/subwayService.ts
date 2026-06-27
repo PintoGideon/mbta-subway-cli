@@ -1,31 +1,31 @@
 import type { MbtaClient } from "./mbtaClient.js";
 import type {
-  ConnectingStop,
-  RoutePlan,
-  RoutePlanStep,
-  RouteStopCount,
-  RouteWithStops,
-  SubwayNetwork,
-  SubwayRoute,
-  SubwayStop,
+	ConnectingStop,
+	RoutePlan,
+	RoutePlanStep,
+	RouteStopCount,
+	RouteWithStops,
+	SubwayNetwork,
+	SubwayRoute,
+	SubwayStop,
 } from "./types.js";
 
 interface RoutePathSearchState {
-  routeId: string;
-  path: string[];
+	routeId: string;
+	path: string[];
 }
 
 /**
  * Fetches the display names for all subway routes included in the assessment.
  */
 export async function listSubwayRouteNames(
-  mbtaClient: MbtaClient,
+	mbtaClient: MbtaClient,
 ): Promise<string[]> {
-  const routes = await mbtaClient.getSubwayRoutes();
-  const routeNames = routes.map((route) => route.longName);
-  const sortedRouteNames = routeNames.sort((a, b) => a.localeCompare(b));
+	const routes = await mbtaClient.getSubwayRoutes();
+	const routeNames = routes.map((route) => route.longName);
+	const sortedRouteNames = routeNames.sort((a, b) => a.localeCompare(b));
 
-  return sortedRouteNames;
+	return sortedRouteNames;
 }
 
 /**
@@ -33,17 +33,17 @@ export async function listSubwayRouteNames(
  * Stop requests are made sequentially to avoid bursting the MBTA API rate limit.
  */
 export async function getRoutesWithStops(
-  mbtaClient: MbtaClient,
+	mbtaClient: MbtaClient,
 ): Promise<RouteWithStops[]> {
-  const routes = await mbtaClient.getSubwayRoutes();
-  const routesWithStops: RouteWithStops[] = [];
+	const routes = await mbtaClient.getSubwayRoutes();
+	const routesWithStops: RouteWithStops[] = [];
 
-  for (const route of routes) {
-    const stops = await mbtaClient.getStopsForRoute(route.id);
-    routesWithStops.push({ route, stops });
-  }
+	for (const route of routes) {
+		const stops = await mbtaClient.getStopsForRoute(route.id);
+		routesWithStops.push({ route, stops });
+	}
 
-  return routesWithStops;
+	return routesWithStops;
 }
 
 /**
@@ -51,34 +51,38 @@ export async function getRoutesWithStops(
  * Example: { routesWithStops, connectingStops, routeGraph, routesById }
  */
 export function buildSubwayNetwork(
-  routesWithStops: RouteWithStops[],
+	routesWithStops: RouteWithStops[],
 ): SubwayNetwork {
-  const connectingStops = findConnectingStops(routesWithStops);
-  const routeGraph = buildRouteGraph(routesWithStops, connectingStops);
-  const routeEntries = routesWithStops.map((routeWithStops) => [
-    routeWithStops.route.id,
-    routeWithStops.route,
-  ] as const);
-  const routesById = new Map(routeEntries);
+	const connectingStops = findConnectingStops(routesWithStops);
 
-  return {
-    routesWithStops,
-    connectingStops,
-    routeGraph,
-    routesById,
-  };
+	// Adjacency list shape: Map { "Red" => ["Green-B", "Orange"] }
+	const routeGraph = buildRouteGraph(routesWithStops, connectingStops);
+
+	// BFS returns route IDs; this map lets us recover full route objects.
+	const routeEntries = routesWithStops.map(
+		(routeWithStops) =>
+			[routeWithStops.route.id, routeWithStops.route] as const,
+	);
+	const routesById = new Map(routeEntries);
+
+	return {
+		routesWithStops,
+		connectingStops,
+		routeGraph,
+		routesById,
+	};
 }
 
 /**
  * Counts how many stops are served by each route.
  */
 function getRouteStopCounts(
-  routesWithStops: RouteWithStops[],
+	routesWithStops: RouteWithStops[],
 ): RouteStopCount[] {
-  return routesWithStops.map((routeStops) => ({
-    route: routeStops.route,
-    stopCount: routeStops.stops.length,
-  }));
+	return routesWithStops.map((routeStops) => ({
+		route: routeStops.route,
+		stopCount: routeStops.stops.length,
+	}));
 }
 
 /**
@@ -87,42 +91,42 @@ function getRouteStopCounts(
  * when counts match, which keeps the result correct as the MBTA data changes.
  */
 function findRoutesByStopCount(
-  routesWithStops: RouteWithStops[],
-  select: "most" | "fewest",
+	routesWithStops: RouteWithStops[],
+	select: "most" | "fewest",
 ): RouteStopCount[] {
-  const routeStopCounts = getRouteStopCounts(routesWithStops);
+	const routeStopCounts = getRouteStopCounts(routesWithStops);
 
-  if (routeStopCounts.length === 0) {
-    return [];
-  }
+	if (routeStopCounts.length === 0) {
+		return [];
+	}
 
-  const stopCounts = routeStopCounts.map(
-    (routeStopCount) => routeStopCount.stopCount,
-  );
-  const targetStopCount =
-    select === "most" ? Math.max(...stopCounts) : Math.min(...stopCounts);
+	const stopCounts = routeStopCounts.map(
+		(routeStopCount) => routeStopCount.stopCount,
+	);
+	const targetStopCount =
+		select === "most" ? Math.max(...stopCounts) : Math.min(...stopCounts);
 
-  return routeStopCounts.filter(
-    (routeStopCount) => routeStopCount.stopCount === targetStopCount,
-  );
+	return routeStopCounts.filter(
+		(routeStopCount) => routeStopCount.stopCount === targetStopCount,
+	);
 }
 
 /**
  * Finds the route with the most stops (all routes, if several tie).
  */
 export function findRoutesWithMostStops(
-  routesWithStops: RouteWithStops[],
+	routesWithStops: RouteWithStops[],
 ): RouteStopCount[] {
-  return findRoutesByStopCount(routesWithStops, "most");
+	return findRoutesByStopCount(routesWithStops, "most");
 }
 
 /**
  * Finds the route with the fewest stops (all routes, if several tie).
  */
 export function findRoutesWithFewestStops(
-  routesWithStops: RouteWithStops[],
+	routesWithStops: RouteWithStops[],
 ): RouteStopCount[] {
-  return findRoutesByStopCount(routesWithStops, "fewest");
+	return findRoutesByStopCount(routesWithStops, "fewest");
 }
 
 /**
@@ -130,39 +134,39 @@ export function findRoutesWithFewestStops(
  * two or more routes.
  */
 export function findConnectingStops(
-  routesWithStops: RouteWithStops[],
+	routesWithStops: RouteWithStops[],
 ): ConnectingStop[] {
-  const stopsById = new Map<string, ConnectingStop>();
+	const stopsById = new Map<string, ConnectingStop>();
 
-  for (const routeStops of routesWithStops) {
-    for (const stop of routeStops.stops) {
-      const connectingStop = stopsById.get(stop.id);
+	for (const routeStops of routesWithStops) {
+		for (const stop of routeStops.stops) {
+			const connectingStop = stopsById.get(stop.id);
 
-      if (connectingStop) {
-        const alreadyHasRoute = connectingStop.routes.some(
-          (route) => route.id === routeStops.route.id,
-        );
+			if (connectingStop) {
+				const alreadyHasRoute = connectingStop.routes.some(
+					(route) => route.id === routeStops.route.id,
+				);
 
-        if (!alreadyHasRoute) {
-          connectingStop.routes.push(routeStops.route);
-        }
+				if (!alreadyHasRoute) {
+					connectingStop.routes.push(routeStops.route);
+				}
 
-        continue;
-      }
+				continue;
+			}
 
-      stopsById.set(stop.id, {
-        stop,
-        routes: [routeStops.route],
-      });
-    }
-  }
+			stopsById.set(stop.id, {
+				stop,
+				routes: [routeStops.route],
+			});
+		}
+	}
 
-  const stopsWithRoutes = [...stopsById.values()];
-  const connectingStops = stopsWithRoutes.filter(
-    (connectingStop) => connectingStop.routes.length >= 2,
-  );
+	const stopsWithRoutes = [...stopsById.values()];
+	const connectingStops = stopsWithRoutes.filter(
+		(connectingStop) => connectingStop.routes.length >= 2,
+	);
 
-  return connectingStops;
+	return connectingStops;
 }
 
 /**
@@ -170,50 +174,50 @@ export function findConnectingStops(
  * Matching is case-insensitive and ignores leading/trailing whitespace.
  */
 export function findStopIdsByName(
-  routesWithStops: RouteWithStops[],
-  stopName: string,
+	routesWithStops: RouteWithStops[],
+	stopName: string,
 ): string[] {
-  const normalizedStopName = normalizeStopName(stopName);
-  const stopIds = new Set<string>();
+	const normalizedStopName = normalizeStopName(stopName);
+	const stopIds = new Set<string>();
 
-  for (const routeStops of routesWithStops) {
-    for (const stop of routeStops.stops) {
-      if (normalizeStopName(stop.name) === normalizedStopName) {
-        stopIds.add(stop.id);
-      }
-    }
-  }
+	for (const routeStops of routesWithStops) {
+		for (const stop of routeStops.stops) {
+			if (normalizeStopName(stop.name) === normalizedStopName) {
+				stopIds.add(stop.id);
+			}
+		}
+	}
 
-  const matchingStopIds = [...stopIds];
-  return matchingStopIds;
+	const matchingStopIds = [...stopIds];
+	return matchingStopIds;
 }
 
 /**
  * Finds all routes that serve at least one of the provided stop IDs.
  */
 export function findRoutesByStopIds(
-  routesWithStops: RouteWithStops[],
-  stopIds: string[],
+	routesWithStops: RouteWithStops[],
+	stopIds: string[],
 ): SubwayRoute[] {
-  const stopIdSet = new Set(stopIds);
-  const routesById = new Map<string, SubwayRoute>();
+	const stopIdSet = new Set(stopIds);
+	const routesById = new Map<string, SubwayRoute>();
 
-  for (const routeStops of routesWithStops) {
-    const hasMatchingStop = routeStops.stops.some((stop) =>
-      stopIdSet.has(stop.id),
-    );
+	for (const routeStops of routesWithStops) {
+		const hasMatchingStop = routeStops.stops.some((stop) =>
+			stopIdSet.has(stop.id),
+		);
 
-    if (hasMatchingStop) {
-      routesById.set(routeStops.route.id, routeStops.route);
-    }
-  }
+		if (hasMatchingStop) {
+			routesById.set(routeStops.route.id, routeStops.route);
+		}
+	}
 
-  const routes = [...routesById.values()];
-  const sortedRoutes = routes.sort((a, b) =>
-    a.longName.localeCompare(b.longName),
-  );
+	const routes = [...routesById.values()];
+	const sortedRoutes = routes.sort((a, b) =>
+		a.longName.localeCompare(b.longName),
+	);
 
-  return sortedRoutes;
+	return sortedRoutes;
 }
 
 /**
@@ -222,41 +226,57 @@ export function findRoutesByStopIds(
  * Example: Map { "Red" => ["Green-B", "Orange"] }
  */
 export function buildRouteGraph(
-  routesWithStops: RouteWithStops[],
-  connectingStops = findConnectingStops(routesWithStops),
+	routesWithStops: RouteWithStops[],
+	connectingStops = findConnectingStops(routesWithStops),
 ): Map<string, string[]> {
-  const routeGraph = new Map<string, Set<string>>();
+	const routeGraph = new Map<string, Set<string>>();
 
-  for (const routeWithStops of routesWithStops) {
-    routeGraph.set(routeWithStops.route.id, new Set());
-  }
+	for (const routeNode of routesWithStops) {
+		routeGraph.set(routeNode.route.id, new Set());
+	}
 
-  for (const connection of connectingStops) {
-    for (const route of connection.routes) {
-      const connectedRouteIds = routeGraph.get(route.id) ?? new Set<string>();
-      routeGraph.set(route.id, connectedRouteIds);
+	for (const connection of connectingStops) {
+		const routesAtStop = connection.routes;
 
-      for (const otherRoute of connection.routes) {
-        if (otherRoute.id === route.id) {
-          continue;
-        }
+		for (
+			let sourceIndex = 0;
+			sourceIndex < routesAtStop.length;
+			sourceIndex += 1
+		) {
+			const sourceRoute = routesAtStop[sourceIndex];
 
-        connectedRouteIds.add(otherRoute.id);
-      }
-    }
-  }
+			if (!sourceRoute) {
+				continue;
+			}
 
-  const sortedRouteGraph = new Map<string, string[]>();
+			for (
+				let targetIndex = sourceIndex + 1;
+				targetIndex < routesAtStop.length;
+				targetIndex += 1
+			) {
+				const targetRoute = routesAtStop[targetIndex];
 
-  for (const [routeId, connectedRouteIds] of routeGraph.entries()) {
-    const sortedConnectedRouteIds = [...connectedRouteIds].sort((a, b) =>
-      a.localeCompare(b),
-    );
+				if (!targetRoute) {
+					continue;
+				}
 
-    sortedRouteGraph.set(routeId, sortedConnectedRouteIds);
-  }
+				routeGraph.get(sourceRoute.id)?.add(targetRoute.id);
+				routeGraph.get(targetRoute.id)?.add(sourceRoute.id);
+			}
+		}
+	}
 
-  return sortedRouteGraph;
+	const sortedRouteGraph = new Map<string, string[]>();
+
+	for (const [routeId, connectedRouteIds] of routeGraph.entries()) {
+		const sortedConnectedRouteIds = [...connectedRouteIds].sort((a, b) =>
+			a.localeCompare(b),
+		);
+
+		sortedRouteGraph.set(routeId, sortedConnectedRouteIds);
+	}
+
+	return sortedRouteGraph;
 }
 
 /**
@@ -265,50 +285,50 @@ export function buildRouteGraph(
  * array on each iteration.
  */
 export function findShortestRoutePath(
-  routeGraph: Map<string, string[]>,
-  startRoutes: SubwayRoute[],
-  finishRoutes: SubwayRoute[],
+	routeGraph: Map<string, string[]>,
+	startRoutes: SubwayRoute[],
+	finishRoutes: SubwayRoute[],
 ): string[] | undefined {
-  const finishRouteIds = new Set(finishRoutes.map((route) => route.id));
-  const visitedRouteIds = new Set<string>();
-  const queue: RoutePathSearchState[] = [];
+	const finishRouteIds = new Set(finishRoutes.map((route) => route.id));
+	const visitedRouteIds = new Set<string>();
+	const queue: RoutePathSearchState[] = [];
 
-  for (const route of startRoutes) {
-    if (finishRouteIds.has(route.id)) {
-      return [route.id];
-    }
+	for (const route of startRoutes) {
+		if (finishRouteIds.has(route.id)) {
+			return [route.id];
+		}
 
-    visitedRouteIds.add(route.id);
-    queue.push({ routeId: route.id, path: [route.id] });
-  }
+		visitedRouteIds.add(route.id);
+		queue.push({ routeId: route.id, path: [route.id] });
+	}
 
-  let head = 0;
+	let head = 0;
 
-  while (head < queue.length) {
-    const current = queue[head];
-    head += 1;
+	while (head < queue.length) {
+		const current = queue[head];
+		head += 1;
 
-    if (!current) {
-      continue;
-    }
+		if (!current) {
+			continue;
+		}
 
-    for (const connectedRouteId of routeGraph.get(current.routeId) ?? []) {
-      if (visitedRouteIds.has(connectedRouteId)) {
-        continue;
-      }
+		for (const connectedRouteId of routeGraph.get(current.routeId) ?? []) {
+			if (visitedRouteIds.has(connectedRouteId)) {
+				continue;
+			}
 
-      const path = [...current.path, connectedRouteId];
+			const path = [...current.path, connectedRouteId];
 
-      if (finishRouteIds.has(connectedRouteId)) {
-        return path;
-      }
+			if (finishRouteIds.has(connectedRouteId)) {
+				return path;
+			}
 
-      visitedRouteIds.add(connectedRouteId);
-      queue.push({ routeId: connectedRouteId, path });
-    }
-  }
+			visitedRouteIds.add(connectedRouteId);
+			queue.push({ routeId: connectedRouteId, path });
+		}
+	}
 
-  return undefined;
+	return undefined;
 }
 
 /**
@@ -316,70 +336,72 @@ export function findShortestRoutePath(
  * Throws if either stop cannot be found or no route path connects them.
  * Example: { startStopName, finishStopName, routes, steps }
  */
-export function planRoute(
-  routesWithStops: RouteWithStops[],
-  startName: string,
-  finishName: string,
+export function createRoutePlan(
+	routesWithStops: RouteWithStops[],
+	startName: string,
+	finishName: string,
 ): RoutePlan {
-  const subwayNetwork = buildSubwayNetwork(routesWithStops);
-  const startStopIds = findStopIdsByName(
-    subwayNetwork.routesWithStops,
-    startName,
-  );
-  const finishStopIds = findStopIdsByName(
-    subwayNetwork.routesWithStops,
-    finishName,
-  );
+	const subwayNetwork = buildSubwayNetwork(routesWithStops);
+	const startStopIds = findStopIdsByName(
+		subwayNetwork.routesWithStops,
+		startName,
+	);
+	const finishStopIds = findStopIdsByName(
+		subwayNetwork.routesWithStops,
+		finishName,
+	);
 
-  if (startStopIds.length === 0) {
-    throw new Error(`Could not find start stop "${startName}".`);
-  }
+	if (startStopIds.length === 0) {
+		throw new Error(`Could not find start stop "${startName}".`);
+	}
 
-  if (finishStopIds.length === 0) {
-    throw new Error(`Could not find finish stop "${finishName}".`);
-  }
+	if (finishStopIds.length === 0) {
+		throw new Error(`Could not find finish stop "${finishName}".`);
+	}
 
-  const startRoutes = findRoutesByStopIds(
-    subwayNetwork.routesWithStops,
-    startStopIds,
-  );
-  const finishRoutes = findRoutesByStopIds(
-    subwayNetwork.routesWithStops,
-    finishStopIds,
-  );
-  const routePathIds = findShortestRoutePath(
-    subwayNetwork.routeGraph,
-    startRoutes,
-    finishRoutes,
-  );
+	const startRoutes = findRoutesByStopIds(
+		subwayNetwork.routesWithStops,
+		startStopIds,
+	);
+	const finishRoutes = findRoutesByStopIds(
+		subwayNetwork.routesWithStops,
+		finishStopIds,
+	);
+	const routePathIds = findShortestRoutePath(
+		subwayNetwork.routeGraph,
+		startRoutes,
+		finishRoutes,
+	);
 
-  if (!routePathIds) {
-    throw new Error(`No subway route found from "${startName}" to "${finishName}".`);
-  }
+	if (!routePathIds) {
+		throw new Error(
+			`No subway route found from "${startName}" to "${finishName}".`,
+		);
+	}
 
-  const routes = routePathIds.map((routeId) => {
-    const route = subwayNetwork.routesById.get(routeId);
+	const routes = routePathIds.map((routeId) => {
+		const route = subwayNetwork.routesById.get(routeId);
 
-    if (!route) {
-      throw new Error(`Route path referenced unknown route "${routeId}".`);
-    }
+		if (!route) {
+			throw new Error(`Route path referenced unknown route "${routeId}".`);
+		}
 
-    return route;
-  });
+		return route;
+	});
 
-  const steps = buildRoutePlanSteps(
-    subwayNetwork.connectingStops,
-    routes,
-    startName,
-    finishName,
-  );
+	const steps = buildRoutePlanSteps(
+		subwayNetwork.connectingStops,
+		routes,
+		startName,
+		finishName,
+	);
 
-  return {
-    startStopName: startName,
-    finishStopName: finishName,
-    routes,
-    steps,
-  };
+	return {
+		startStopName: startName,
+		finishStopName: finishName,
+		routes,
+		steps,
+	};
 }
 
 /**
@@ -387,96 +409,96 @@ export function planRoute(
  * where each route transfer can occur.
  */
 export function buildRoutePlanSteps(
-  connectingStops: ConnectingStop[],
-  routes: SubwayRoute[],
-  startName: string,
-  finishName: string,
+	connectingStops: ConnectingStop[],
+	routes: SubwayRoute[],
+	startName: string,
+	finishName: string,
 ): RoutePlanStep[] {
-  const firstRoute = routes.at(0);
+	const firstRoute = routes.at(0);
 
-  if (!firstRoute) {
-    return [
-      {
-        kind: "arrive",
-        stopName: finishName,
-      },
-    ];
-  }
+	if (!firstRoute) {
+		return [
+			{
+				kind: "arrive",
+				stopName: finishName,
+			},
+		];
+	}
 
-  const steps: RoutePlanStep[] = [
-    {
-      kind: "board",
-      stopName: startName,
-      route: firstRoute,
-    },
-  ];
+	const steps: RoutePlanStep[] = [
+		{
+			kind: "board",
+			stopName: startName,
+			route: firstRoute,
+		},
+	];
 
-  for (let routeIndex = 1; routeIndex < routes.length; routeIndex += 1) {
-    const previousRoute = routes[routeIndex - 1];
-    const nextRoute = routes[routeIndex];
+	for (let routeIndex = 1; routeIndex < routes.length; routeIndex += 1) {
+		const previousRoute = routes[routeIndex - 1];
+		const nextRoute = routes[routeIndex];
 
-    if (!previousRoute || !nextRoute) {
-      continue;
-    }
+		if (!previousRoute || !nextRoute) {
+			continue;
+		}
 
-    const transferStop = findTransferStopInConnections(
-      connectingStops,
-      previousRoute.id,
-      nextRoute.id,
-    );
+		const transferStop = findTransferStopInConnections(
+			connectingStops,
+			previousRoute.id,
+			nextRoute.id,
+		);
 
-    if (!transferStop) {
-      throw new Error(
-        `Could not find a transfer stop between "${previousRoute.longName}" and "${nextRoute.longName}".`,
-      );
-    }
+		if (!transferStop) {
+			throw new Error(
+				`Could not find a transfer stop between "${previousRoute.longName}" and "${nextRoute.longName}".`,
+			);
+		}
 
-    steps.push({
-      kind: "transfer",
-      stopName: transferStop.name,
-      route: nextRoute,
-    });
-  }
+		steps.push({
+			kind: "transfer",
+			stopName: transferStop.name,
+			route: nextRoute,
+		});
+	}
 
-  steps.push({
-    kind: "arrive",
-    stopName: finishName,
-  });
+	steps.push({
+		kind: "arrive",
+		stopName: finishName,
+	});
 
-  return steps;
+	return steps;
 }
 
 function findTransferStopInConnections(
-  connectingStops: ConnectingStop[],
-  firstRouteId: string,
-  secondRouteId: string,
+	connectingStops: ConnectingStop[],
+	firstRouteId: string,
+	secondRouteId: string,
 ): SubwayStop | undefined {
-  const transferStopOptions: SubwayStop[] = [];
+	const transferStopOptions: SubwayStop[] = [];
 
-  for (const connectingStop of connectingStops) {
-    const servesFirstRoute = connectingStop.routes.some(
-      (route) => route.id === firstRouteId,
-    );
-    const servesSecondRoute = connectingStop.routes.some(
-      (route) => route.id === secondRouteId,
-    );
+	for (const connectingStop of connectingStops) {
+		const servesFirstRoute = connectingStop.routes.some(
+			(route) => route.id === firstRouteId,
+		);
+		const servesSecondRoute = connectingStop.routes.some(
+			(route) => route.id === secondRouteId,
+		);
 
-    if (servesFirstRoute && servesSecondRoute) {
-      transferStopOptions.push(connectingStop.stop);
-    }
-  }
+		if (servesFirstRoute && servesSecondRoute) {
+			transferStopOptions.push(connectingStop.stop);
+		}
+	}
 
-  // A route pair can share multiple stops; sort to choose one deterministically.
-  const sortedTransferStopOptions = transferStopOptions.sort((a, b) =>
-    a.name.localeCompare(b.name),
-  );
+	// A route pair can share multiple stops; sort to choose one deterministically.
+	const sortedTransferStopOptions = transferStopOptions.sort((a, b) =>
+		a.name.localeCompare(b.name),
+	);
 
-  return sortedTransferStopOptions.at(0);
+	return sortedTransferStopOptions.at(0);
 }
 
 /**
  * Normalizes user-provided and API-provided stop names for equality checks.
  */
 function normalizeStopName(stopName: string): string {
-  return stopName.trim().toLowerCase();
+	return stopName.trim().toLowerCase();
 }

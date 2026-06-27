@@ -1,5 +1,7 @@
-import { Command, Option } from "commander";
 import { existsSync } from "node:fs";
+
+import { Command, Option } from "commander";
+
 import {
   formatConnectingStops,
   formatRouteNames,
@@ -8,12 +10,12 @@ import {
 } from "./formatters.js";
 import { MbtaClient } from "./mbtaClient.js";
 import {
+  createRoutePlan,
   findConnectingStops,
   findRoutesWithFewestStops,
   findRoutesWithMostStops,
   getRoutesWithStops,
   listSubwayRouteNames,
-  planRoute as createRoutePlan,
 } from "./subwayService.js";
 
 type PrintRouteOption = "longest" | "shortest";
